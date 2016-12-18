@@ -1,5 +1,6 @@
 import sys
 import caffe
+import os
 from copy import copy,deepcopy
 sys.path.append('../code')
 
@@ -20,8 +21,6 @@ import matplotlib.pyplot as plt
 import scipy.stats 
 from matplotlib import cm
 from skimage.restoration import denoise_bilateral
-#from skimage.filters import rank
-#from skimage.morphology import disk
 from skimage import feature
 from skimage.filters import sobel
 from scipy.stats import norm
@@ -31,36 +30,25 @@ from scipy import linalg
 from copy import copy
 from skimage.measure import compare_ssim as ssim, compare_psnr as psnr
 from skimage.color import rgb2gray
-
-def get_mask(img, margin, holes):  
-    mask = np.random.choice(2,img.shape,p=[holes,1-holes])
-    mask[:margin,:] = 1
-    mask[:,:margin] = 1
-    mask[:,-margin:] = 1
-    mask[-margin:,:] = 1
-    return mask
+from scipy.linalg import qr
 
 
 def main(argv):
 	parser = ArgumentParser(argv[0], description=__doc__)
-	parser.add_argument('model',              type=str)
-	parser.add_argument('--data',       '-d', type=str, default='data/BSDS300_test.mat')
-	parser.add_argument('--img_num',    '-i', type=int, default=56)
+	parser.add_argument('--model',        '-m', type=str, default='models/1_layer_ride/rim.10082016.221222.xpck')
+	parser.add_argument('--data',       '-d', type=str, default='data/BSDS_Cropped/img_data.mat')
 	parser.add_argument('--noise_std',  '-n', type=int, default=-1)
-	parser.add_argument('--momentum',	'-m', type=float, default=0.9)
-	parser.add_argument('--lr',  		'-l', type=float, default=0.0001)
-	parser.add_argument('--niter',  	'-N', type=int, default=1000)
+	parser.add_argument('--momentum',	'-M', type=float, default=0.9)
+	parser.add_argument('--lr',  		'-l', type=float, default=5.0)
+	parser.add_argument('--niter',  	'-N', type=int, default=400)
 	parser.add_argument('--path',       '-p', type=str, default='map_single_pixel/')
 	parser.add_argument('--mode',       '-q', type=str, default='CPU', choices=['CPU', 'GPU'])
 	parser.add_argument('--device',     '-D', type=int, default=0)
-	parser.add_argument('--size',		'-s', type=int, default= 64)
-	parser.add_argument('--holes',	    '-H', type=float, default=0.0)
-	parser.add_argument('--margin',		'-M', type=int,	  default = 1)
+	parser.add_argument('--size',		'-s', type=int, default= 160)
 	parser.add_argument('--samples', '-y', type=float,	  default = 0.4)
 	parser.add_argument('--image_num', '-K', type=int,  default = 2)
 	parser.add_argument('--resume',	'-r',	type=int,default=-1)
 	parser.add_argument('--flip',	'-f', type=int,default=0)	
-	parser.add_argument('--lamda',	'-L', type=int,default=0)
 	parser.add_argument('--ent_max', '-e', type=float, default=100.0)
 
 	args = parser.parse_args(argv[1:])
@@ -69,7 +57,6 @@ def main(argv):
 	N = args.size
 	K = args.image_num
 	noise_std = args.noise_std
-	lamda = args.lamda
 
 	print 'Measurement Rate',args.samples
 	print 'Noise Level',noise_std
@@ -88,6 +75,8 @@ def main(argv):
 	if args.samples > -1:
 		path += str(args.samples)+'/'
 
+	if not os.path.exists(path):
+		os.makedirs(path)	
 	sys.stdout = open(path+'log.txt','w')
 	# load data
 	if args.data.lower()[-4:] in ['.gif', '.png', '.jpg', 'jpeg']:
@@ -120,6 +109,8 @@ def main(argv):
 
 
 	for k in range(K):
+		if not os.path.exists(path+str(k)+'/'):
+			os.makedirs(path+str(k)+'/')
 		mplimg.imsave(path+str(k)+'/original_img',img[k].squeeze(),cmap=cm.gray)	
 	
 	y = np.dot(Phi,img.reshape(K,-1).transpose())	
@@ -146,7 +137,6 @@ def main(argv):
 	# i_max = copy(init_img.max())
 	# i_min = copy(init_img.min())
 	# i_min = 0
-	# lamda = 0.0
 	prev_grad = 0
 	if args.resume > 0:
 		init_img = np.load(path+'cleaned_img/'+str(args.resume)+'.npy')
@@ -162,7 +152,7 @@ def main(argv):
 		# if i%300 == 0:
 		# 	lr = 0.8
 		j = args.flip*i
-		f,grad_img,whitened_img = model.gradient_mul(init_img.transpose().reshape(K,N,N,1)[:,::(-1)**j,::(-1)**(j/2),:],precond = None,niter=i,path=path,ent_max=args.ent_max)
+		f,grad_img,whitened_img = model.gradient(init_img.transpose().reshape(K,N,N,1)[:,::(-1)**j,::(-1)**(j/2),:],precond = None,niter=i,path=path,ent_max=args.ent_max)
 		# print ((init_img-i_min)/(i_max-i_min)).max()
 		# print ((init_img-i_min)/(i_max-i_min)).min()
 		df_dh = grad_img[:,::(-1)**j,::(-1)**(j/2),:].reshape(K,-1).transpose()
@@ -187,13 +177,15 @@ def main(argv):
 		l = linalg.norm(y-np.dot(Phi,init_img))
 		print 'l',l
 
-		if (i%10==0):
-			for k in range(K):
-				fig2 = plt.figure(2)
-				plt.imshow(df_dh[:,k].reshape(N,N),vmin = -0.02,vmax=0.02)
-				plt.colorbar()
-				plt.savefig(path+str(k)+'/grad_img'+str(i))
-				plt.close(fig2)	
+		#For Saving Gradient Image
+
+		# if (i%10==0):
+		# 	for k in range(K):
+		# 		fig2 = plt.figure(2)
+		# 		plt.imshow(df_dh[:,k].reshape(N,N),vmin = -0.02,vmax=0.02)
+		# 		plt.colorbar()
+		# 		plt.savefig(path+str(k)+'/grad_img'+str(i))
+		# 		plt.close(fig2)	
 
 		# if (i%1 ==0):
 		# 	for k in range(K):
@@ -224,6 +216,8 @@ def main(argv):
 			psnr1 = psnr(init_img[:,k].reshape(N,N)[m:-m,m:-m],img[k].squeeze()[m:-m,m:-m],dynamic_range=img.min()-img.max())
 			ssim_list[k].append(ssim1)
 			psnr_list[k].append(psnr1)
+			if not os.path.exists(path+'cleaned_img/'):
+				os.makedirs(path+'cleaned_img/')	
 			np.save(path+'cleaned_img/ssim_list',ssim_list)
 			np.save(path+'cleaned_img/psnr_list',psnr_list)
 			print k,'ssim',ssim1,'psnr', psnr1
