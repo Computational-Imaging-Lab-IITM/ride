@@ -57,7 +57,10 @@ def main(argv):
 	N = args.size
 	K = args.image_num
 	noise_std = args.noise_std
-
+	path = args.path
+	if not os.path.exists(path):
+		os.makedirs(path)	
+		
 	print 'Measurement Rate',args.samples
 	print 'Noise Level',noise_std
 	# select CPU or GPU for caffe
@@ -67,7 +70,6 @@ def main(argv):
 		caffe.set_device(args.device)
 	else:
 		caffe.set_mode_cpu()
-	path = args.path
 	
 	if noise_std>-1:
 		noise_std = float(noise_std)*10/255.0
@@ -84,28 +86,19 @@ def main(argv):
 
 	    img = rgb2gray(images[:args.size,:args.size])
 	    img = img.astype('float64')
-	    print 'img max',img.max()
 	else:
 		images = loadmat(args.data)['data']
 		images = images.astype('float64')
-			# load an image, 56 looks good
-		# idxs = [2,4]
-		# images = images[idxs,:,:]
 		img = images[:K,:args.size,:args.size]
-		print 'shape', images.shape
-		print 'img max',img.max()
 
 	# load model
 	print 'Loading model'
 	experiment = Experiment(args.model)
 	model = experiment['model']
-	#print 'precond',model.preconditioner.logjacobian
 	input_mask = model.input_mask
 	output_mask = model.output_mask
 
-	# Phi = loadmat('map_single_pixel/Phi_g_'+str(N)+'.mat')['Phi'][1:int(args.samples*args.size**2),:]
 	Phi = np.load('map_single_pixel/Phi_g_'+str(N)+'.npy')[1:int(args.samples*args.size**2),:]
-	# y  = loadmat(path+'random/Ball_64.mat')['y'][1:int(args.samples*args.size**2),:]
 	del images
 
 
@@ -120,28 +113,14 @@ def main(argv):
 		y += noise_std*np.random.randn(*y.shape)
 	M = y.shape[0]
 	print 'Number of measurements', M
-	print 'Starting pinv'
-	# init_img = np.linalg.lstsq(Phi,y)
-	# init_img = init_img[0]
+
+	#Initializing
 	np.random.seed(123)
 	init_img = np.random.rand(N**2,K)
-	# init_img = img.reshape(N**2,1)
-	# init_img = np.zeros_like(init_img)
-	# print 'init_img min', init_img.min()
-	# print 'init_img max', init_img.max()	
-	# init_img = init_img/init_img.max()
-	# init_img[init_img<0]= 0.0
-	# plt.imshow(init_img, cmap = cm.gray)
-	# plt.colorbar()
-	# plt.show()
-	# init_img = np.zeros((N,N))
-	# i_max = copy(init_img.max())
-	# i_min = copy(init_img.min())
-	# i_min = 0
+
 	prev_grad = 0
 	if args.resume > 0:
 		init_img = np.load(path+'cleaned_img/'+str(args.resume)+'.npy')
-		# init_img = np.load('/home/cplab-ws1/ride/code/map_single_pixel/0.3/cleaned_img/200.npy')
 
 	for k in range(K):
 		mplimg.imsave(path+str(k)+'/init_img', init_img[:,k].reshape(N,N), cmap = cm.gray)
@@ -150,24 +129,12 @@ def main(argv):
 	ssim_list = [[]for i in range(K)]
 	for i in range(args.niter):
 
-		# if i%300 == 0:
-		# 	lr = 0.8
 		j = args.flip*i
 		f,grad_img,whitened_img = model.gradient(init_img.transpose().reshape(K,N,N,1)[:,::(-1)**j,::(-1)**(j/2),:],precond = None,niter=i,path=path,ent_max=args.ent_max)
-		# print ((init_img-i_min)/(i_max-i_min)).max()
-		# print ((init_img-i_min)/(i_max-i_min)).min()
 		df_dh = grad_img[:,::(-1)**j,::(-1)**(j/2),:].reshape(K,-1).transpose()
-		# dl_dh = -2*np.dot(Phi.transpose(),y-np.dot(Phi,init_img.reshape(N**2,1))).reshape(N,N)/N**2
 		print i, 'f',f.sum(),'df_dh', np.abs(df_dh).sum(),
 		prev_grad = args.momentum*prev_grad + df_dh
 		x_up = init_img+ lr*(prev_grad)
-		# if entropy.max()>5.0:
-		# 	print  'Sampling'
-		# 	x_up_mean = np.zeros((N**2,1)) 
-		# 	for it in range(1):
-		# 		x,x_sample,loglik_img = model.interpolate(x_up.reshape(1,N,N,1),entropy<3.8,method='mode',sample=1)
-		# 		x_up_mean +=x_sample.reshape(N**2,1)
-		# 	x_up_mean = x_up_mean/1
 
 		init_img = x_up - np.dot(Phi.transpose(),np.dot(Phi,x_up)-y)
 		init_img=np.clip(init_img,0.0,1.0)
@@ -196,22 +163,8 @@ def main(argv):
 		# 		plt.savefig(path+str(k)+'/loglik_img'+str(i))
 		# 		plt.close(fig1)
 
-		# if (i%1==0):
-		# 	for k in range(K):
-		# 		fig3 = plt.figure(3)
-		# 		plt.imshow(whitened_img[:,k].reshape(N,N),vmin=-5.0,vmax=6.0)
-		# 		plt.colorbar()
-		# 		plt.savefig(path+str(k)+'/whitened_img'+str(i))
-		# 		plt.close(fig3)	
 
-		# if i%1==0 and entropy.max()>4.0:
-		# 	fig3 = plt.figure(4)
-		# 	plt.imshow(x_sample.reshape(N,N),cmap='gray')
-		# 	plt.colorbar()
-		# 	plt.savefig(path_sample'+str(i))
-		# 	plt.close(fig3)	
-
-		m= 2
+		m= 2 #Margin to remove for comparision
 		for k in range(K):
 			ssim1 = ssim(init_img[:,k].reshape(N,N)[m:-m,m:-m],img[k].squeeze()[m:-m,m:-m],dynamic_range=img.min()-img.max())
 			psnr1 = psnr(init_img[:,k].reshape(N,N)[m:-m,m:-m],img[k].squeeze()[m:-m,m:-m],dynamic_range=img.min()-img.max())
@@ -223,11 +176,8 @@ def main(argv):
 			np.save(path+'cleaned_img/psnr_list',psnr_list)
 			print k,'ssim',ssim1,'psnr', psnr1
 
-		if (i%50==0):
+		if (i%50==0): #Storing npy files
 			np.save(path+'cleaned_img/'+str(i),init_img)
-
-	model.verbosity=0
-
 
 	return 0
 

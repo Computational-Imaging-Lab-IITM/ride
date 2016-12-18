@@ -57,6 +57,8 @@ def main(argv):
 	lr = args.lr
 	N = args.size
 	path = args.path
+	if not os.path.exists(path):
+		os.makedirs(path)		
 
 	# select CPU or GPU for caffe
 	if args.mode.upper() == 'GPU':
