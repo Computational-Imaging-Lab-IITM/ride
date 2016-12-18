@@ -103,7 +103,8 @@ def main(argv):
 	input_mask = model.input_mask
 	output_mask = model.output_mask
 
-	Phi = loadmat('map_single_pixel/Phi_g_'+str(N)+'.mat')['Phi'][1:int(args.samples*args.size**2),:]
+	# Phi = loadmat('map_single_pixel/Phi_g_'+str(N)+'.mat')['Phi'][1:int(args.samples*args.size**2),:]
+	Phi = np.load('map_single_pixel/Phi_g_'+str(N)+'.npy')[1:int(args.samples*args.size**2),:]
 	# y  = loadmat(path+'random/Ball_64.mat')['y'][1:int(args.samples*args.size**2),:]
 	del images
 

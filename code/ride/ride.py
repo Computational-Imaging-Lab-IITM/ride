@@ -1331,7 +1331,6 @@ class RIDE(object):
         # form inputs to MCGSM
         H_flat = hiddens.reshape(-1, self.num_hiddens).T
         Y_flat = outputs.reshape(-1, self.num_channels).T
-        #print 'outputs shape',outputs.shape
 
         # compute gradients
         df_dh, df_dy, loglik = self.mcgsm._data_gradient(H_flat, Y_flat)
