@@ -4,6 +4,9 @@ Code corresponding to the paper : (https://arxiv.org/abs/1612.04229)
 Forked from the original code for RIDE, which can be found [here](https://github.com/lucastheis/ride/)
 
 ## Results
+- Missing Pixel Interpolation
+
+<img src="https://github.com/adaveiitm/ride/code/map_interpolate/animation.gif />
 
 ## Requirements
 
