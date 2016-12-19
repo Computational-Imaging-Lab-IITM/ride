@@ -6,11 +6,20 @@ Forked from the original code for RIDE, which can be found [here](https://github
 ## Results
 - Missing Pixel Interpolation
 
-<img src="https://github.com/adaveiitm/ride/code/map_interpolate/animation.gif />
+Original Image          |  Masked Image      |  During Gradient Ascent   | Recovered Image
+:-------------------------:|:-------------------------: | :-------------------------:|:-------------------------:
+![](https://github.com/adaveiitm/ride/blob/master/code/images/interpolate/original_img.png)  |  ![](https://github.com/adaveiitm/ride/blob/master/code/images/interpolate/noisy_img.png) | ![](https://github.com/adaveiitm/ride/blob/master/code/images/interpolate/animation.gif) | ![](https://github.com/adaveiitm/ride/blob/master/code/images/interpolate/cleaned_img300.png) 
+
+- Single Pixel Camera Reconstruction
+
+Original Image          |  Initial Image      |   During Gradient Ascent   | Recovered Image
+:-------------------------:|:-------------------------: | :-------------------------:|:-------------------------:
+![](https://github.com/adaveiitm/ride/blob/master/code/images/single_pixel/original_img.png)  |  ![](https://github.com/adaveiitm/ride/blob/master/code/images/single_pixel/img000.png) | ![](https://github.com/adaveiitm/ride/blob/master/code/images/single_pixel/animation.gif) | ![](https://github.com/adaveiitm/ride/blob/master/code/images/single_pixel/img130.png) 
+
 
 ## Requirements
 
-Same as original RIDE version (https://github.com/lucastheis/ride/)
+Same as original RIDE code (https://github.com/lucastheis/ride/)
 
 ## Usage
 
