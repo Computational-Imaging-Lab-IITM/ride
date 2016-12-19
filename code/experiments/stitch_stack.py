@@ -9,7 +9,7 @@ from skimage.color import rgb2gray
 from scipy.io import loadmat
 
 parser = ArgumentParser(sys.argv[0], description=__doc__)
-parser.add_argument('--data',       '-d', type=str, default='data/BSDS300_test.mat')
+parser.add_argument('--data',       '-d', type=str, default='data/BSDS_Cropped/img_data.mat')
 parser.add_argument('--path',       '-p', type=str, default='/home/cplab-ws1/ride/code/map_interpolate/')
 parser.add_argument('--index', '-I', type=int, default =-1)
 parser.add_argument('--image','-i',type=int,default=0)
@@ -59,12 +59,3 @@ mplimg.imsave(path+'cleaned_img'+str(args.image),cleaned_img[m:-m,m:-m],cmap='gr
 ssim1 = ssim(cleaned_img[m:-m,m:-m],img[m:-m,m:-m],dynamic_range=img.min()-img.max())
 psnr1 = psnr(cleaned_img[m:-m,m:-m],img[m:-m,m:-m],dynamic_range=img.min()-img.max())
 print 'ssim',ssim1,'psnr',psnr1
-
-# cleaned_img_color = np.zeros((cleaned_img.shape[0],cleaned_img.shape[1],3))
-# for i in range(3):
-# 	j = 400
-# 	if i==1:
-# 		j = 450
-# 	cleaned_img_color[m:-m,m:-m,i] = rgb2gray(mplimg.imread('/home/cplab-ws1/ride/code/map_interpolate/'+str(i)+'/cleaned_img'+str(j)+'.png'))
-
-# mplimg.imsave(path+'cleaned_img_color'+str(args.image),cleaned_img_color[m:-m,m:-m],cmap='gray',vmin=0,vmax=1)
